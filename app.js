@@ -62,7 +62,7 @@ const survey = {
     {
       id: "q10",
       type: "checkbox",
-      required: false,
+      required: true,
       text: "我对以下其他数字化的培训也比较感兴趣（可多选）",
       options: [
         {
@@ -263,6 +263,7 @@ function validateIdentity() {
 
 function validateForm() {
   clearErrors();
+  const data = new FormData(form);
 
   if (!validateIdentity()) {
     return false;
@@ -276,7 +277,16 @@ function validateForm() {
     if (!question.required) continue;
 
     const card = document.querySelector(`[data-question-id="${question.id}"]`);
-    const value = new FormData(form).get(question.id);
+    if (question.type === "checkbox" && data.getAll(question.id).length === 0) {
+      card.querySelectorAll(`input[name="${question.id}"]`).forEach((input) => {
+        input.setAttribute("aria-invalid", "true");
+      });
+      showError(card, "请至少选择一个感兴趣的培训课程后再提交。");
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      return false;
+    }
+
+    const value = data.get(question.id);
     if (!value || !value.toString().trim()) {
       showError(card, "请完成此题后再提交。");
       card.scrollIntoView({ behavior: "smooth", block: "center" });

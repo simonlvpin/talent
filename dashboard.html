@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0f766e">
+    <title>调查问卷分析仪表盘</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="dashboard.css">
+  </head>
+  <body>
+    <main class="dashboard-shell">
+      <header class="dashboard-header">
+        <div>
+          <p class="eyebrow">数字人才调研分析</p>
+          <h1>调查问卷分析仪表盘</h1>
+          <p class="intro">查看本页面可访问到的已提交问卷数据、分析概览和明细，并导出 Excel 供线下分析。</p>
+        </div>
+        <div class="dashboard-actions">
+          <a class="secondary-button" href="index.html">返回问卷</a>
+          <button class="primary-button" type="button" id="exportExcelButton">导出 Excel</button>
+        </div>
+      </header>
+
+      <section class="notice-panel">
+        <strong>数据说明</strong>
+        <span>当前 GitHub Pages 版本会把提交记录保存在浏览器本地。若要汇总所有手机提交的数据，需要接入后端或表单 API；问卷页面不会显示他人数据，只有本管理页展示分析与明细。</span>
+      </section>
+
+      <section class="metric-grid" aria-label="关键指标">
+        <article class="metric-card">
+          <span>提交总数</span>
+          <strong id="totalCount">0</strong>
+        </article>
+        <article class="metric-card">
+          <span>平均认同度</span>
+          <strong id="avgScore">-</strong>
+        </article>
+        <article class="metric-card">
+          <span>参与单位数</span>
+          <strong id="unitCount">0</strong>
+        </article>
+        <article class="metric-card">
+          <span>最近提交</span>
+          <strong id="latestTime">-</strong>
+        </article>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="dashboard-panel">
+          <h2>1-8题平均得分</h2>
+          <div id="scoreBars" class="bar-list"></div>
+        </article>
+        <article class="dashboard-panel">
+          <h2>第10题课程兴趣</h2>
+          <div id="courseBars" class="bar-list"></div>
+        </article>
+      </section>
+
+      <section class="dashboard-panel">
+        <h2>第9题：迫切需要解决的数据质量问题</h2>
+        <div id="qualityIssues" class="open-list"></div>
+      </section>
+
+      <section class="dashboard-panel">
+        <h2>第11题：其他培训期望</h2>
+        <div id="trainingNeeds" class="open-list"></div>
+      </section>
+
+      <section class="dashboard-panel">
+        <div class="table-header">
+          <h2>提交明细</h2>
+          <span id="detailCount">0 条</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead id="detailHead"></thead>
+            <tbody id="detailBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="dashboard.js"></script>
+  </body>
+</html>
