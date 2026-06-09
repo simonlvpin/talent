@@ -24,13 +24,22 @@ const QUESTIONS = [
 const SCORE_QUESTION_COUNT = 7;
 
 const COURSES = [
-  "课程五：AI 领导力（面向中高层管理干部）",
-  "课程六：AI 落地工作坊（所有人）",
-  "课程一：数字化意识与数据思维（面向全体人员）",
-  "课程二：数据治理体系全生命周期管理（面向数据管理专员）",
-  "课程三：数据资产管理及价值化路径（面向资产管理与政策研究人员）",
-  "课程四：BI与数据分析应用（面向业务分析骨干）"
+  "课程一：AI 领导力（面向中高层管理干部）",
+  "课程二：AI 落地工作坊（所有人）",
+  "课程三：数字化意识与数据思维（面向全体人员）",
+  "课程四：数据治理体系全生命周期管理（面向数据管理专员）",
+  "课程五：数据资产管理及价值化路径（面向资产管理与政策研究人员）",
+  "课程六：BI与数据分析应用（面向业务分析骨干）"
 ];
+
+const LEGACY_COURSE_MAP = {
+  "课程五：AI 领导力（面向中高层管理干部）": "课程一：AI 领导力（面向中高层管理干部）",
+  "课程六：AI 落地工作坊（所有人）": "课程二：AI 落地工作坊（所有人）",
+  "课程一：数字化意识与数据思维（面向全体人员）": "课程三：数字化意识与数据思维（面向全体人员）",
+  "课程二：数据治理体系全生命周期管理（面向数据管理专员）": "课程四：数据治理体系全生命周期管理（面向数据管理专员）",
+  "课程三：数据资产管理及价值化路径（面向资产管理与政策研究人员）": "课程五：数据资产管理及价值化路径（面向资产管理与政策研究人员）",
+  "课程四：BI与数据分析应用（面向业务分析骨干）": "课程六：BI与数据分析应用（面向业务分析骨干）"
+};
 
 const exportExcelButton = document.querySelector("#exportExcelButton");
 const dataStatus = document.querySelector("#dataStatus");
@@ -133,7 +142,10 @@ function getRows(submissions) {
     formatDate(item.submittedAt),
     item.unit || "",
     item.name || "",
-    ...QUESTIONS.map((_, index) => normalizeAnswer(getAnswer(item, `q${index + 1}`)))
+    ...QUESTIONS.map((_, index) => {
+      const questionId = `q${index + 1}`;
+      return questionId === "q9" ? normalizeAnswer(normalizeCourseAnswers(item)) : normalizeAnswer(getAnswer(item, questionId));
+    })
   ]);
 }
 
@@ -470,7 +482,11 @@ function escapeHtml(value) {
 
 function normalizeCourseAnswers(item) {
   const answers = getAnswer(item, "q9");
-  return Array.isArray(answers) ? answers : [];
+  return Array.isArray(answers) ? answers.map(normalizeCourseTitle) : [];
+}
+
+function normalizeCourseTitle(course) {
+  return LEGACY_COURSE_MAP[course] || course;
 }
 
 function showTokenPanel() {
