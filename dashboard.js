@@ -24,12 +24,12 @@ const QUESTIONS = [
 const SCORE_QUESTION_COUNT = 7;
 
 const COURSES = [
+  "课程五：AI 领导力（面向中高层管理干部）",
+  "课程六：AI 落地工作坊（所有人）",
   "课程一：数字化意识与数据思维（面向全体人员）",
   "课程二：数据治理体系全生命周期管理（面向数据管理专员）",
   "课程三：数据资产管理及价值化路径（面向资产管理与政策研究人员）",
-  "课程四：BI与数据分析应用（面向业务分析骨干）",
-  "课程五：AI 领导力（面向中高层管理干部）",
-  "课程六：AI 落地工作坊（所有人）"
+  "课程四：BI与数据分析应用（面向业务分析骨干）"
 ];
 
 const exportExcelButton = document.querySelector("#exportExcelButton");
