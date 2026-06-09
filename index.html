@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0f766e">
+    <title>贵州省交通运输厅数据治理专题培训调查问卷</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="survey-hero">
+        <p class="eyebrow">数字人才调研问卷</p>
+        <h1>贵州省交通运输厅数据治理专题培训调查问卷</h1>
+        <p class="intro">
+          尊敬的领导/同事：您好！感谢您参与本次数据治理专题培训。为评估培训效果，并帮助后续更好地推动数据治理工作，请您花约3分钟填写本问卷。您的反馈对我们持续优化培训内容和改进数据治理工作非常重要。
+        </p>
+      </section>
+
+      <form id="surveyForm" class="survey-form" novalidate>
+        <section class="identity-section" aria-labelledby="identityTitle">
+          <h2 id="identityTitle">基本信息</h2>
+          <div class="field-grid">
+            <label class="text-field">
+              <span>单位</span>
+              <input id="unit" name="unit" type="text" autocomplete="organization" required placeholder="请输入单位">
+            </label>
+            <label class="text-field">
+              <span>姓名</span>
+              <input id="name" name="name" type="text" autocomplete="name" required placeholder="请输入姓名">
+            </label>
+          </div>
+        </section>
+
+        <section id="questions" class="questions" aria-live="polite"></section>
+
+        <section class="actions" aria-label="提交问卷">
+          <button class="primary-button" type="submit">提交问卷</button>
+          <button class="secondary-button" type="button" id="resetButton">重置</button>
+        </section>
+      </form>
+
+      <section class="result-panel" id="resultPanel" hidden>
+        <h2>提交成功</h2>
+        <p>结果已保存在当前设备浏览器中。静态 GitHub Pages 不会自动收集数据，您可以复制结果或导出 CSV 后统一回收。</p>
+        <div class="result-actions">
+          <button class="primary-button" type="button" id="copyButton">复制结果</button>
+          <button class="secondary-button" type="button" id="downloadButton">导出 CSV</button>
+        </div>
+        <pre id="resultText" tabindex="0"></pre>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
