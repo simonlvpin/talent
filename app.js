@@ -108,6 +108,7 @@ const resultText = document.querySelector("#resultText");
 const resetButton = document.querySelector("#resetButton");
 const copyButton = document.querySelector("#copyButton");
 const downloadButton = document.querySelector("#downloadButton");
+const identitySection = document.querySelector(".identity-section");
 
 let lastSubmission = null;
 
@@ -229,10 +230,43 @@ function showError(card, message) {
 
 function clearErrors() {
   document.querySelectorAll(".error-message").forEach((error) => error.remove());
+  document.querySelectorAll("[aria-invalid='true']").forEach((field) => {
+    field.setAttribute("aria-invalid", "false");
+  });
+}
+
+function validateIdentity() {
+  const unitInput = document.querySelector("#unit");
+  const nameInput = document.querySelector("#name");
+  const missing = [];
+
+  if (!unitInput.value.trim()) {
+    missing.push("单位");
+    unitInput.setAttribute("aria-invalid", "true");
+  }
+
+  if (!nameInput.value.trim()) {
+    missing.push("姓名");
+    nameInput.setAttribute("aria-invalid", "true");
+  }
+
+  if (missing.length > 0) {
+    showError(identitySection, `请填写${missing.join("和")}后再提交。`);
+    const target = missing.includes("单位") ? unitInput : nameInput;
+    target.focus();
+    identitySection.scrollIntoView({ behavior: "smooth", block: "center" });
+    return false;
+  }
+
+  return true;
 }
 
 function validateForm() {
   clearErrors();
+
+  if (!validateIdentity()) {
+    return false;
+  }
 
   if (!form.reportValidity()) {
     return false;
