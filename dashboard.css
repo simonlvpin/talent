@@ -167,7 +167,7 @@
 
 table {
   width: 100%;
-  min-width: 1080px;
+  min-width: 1120px;
   border-collapse: collapse;
   background: var(--surface);
 }
@@ -191,6 +191,21 @@ th {
 
 td {
   color: #34413d;
+}
+
+.delete-row-button {
+  min-height: 34px;
+  border: 1px solid rgba(180, 35, 24, 0.3);
+  border-radius: 8px;
+  background: #fff7f6;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.delete-row-button:active {
+  background: #fee4e2;
 }
 
 @media (min-width: 820px) {

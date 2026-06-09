@@ -16,11 +16,12 @@ const QUESTIONS = [
   "培训前，我可能认为数据治理主要是信息技术部门（IT）的职责。培训后，我认识到业务部门（如规划、建管、运输、执法等）才是数据治理的责任主体和核心受益者。",
   "在今后的工作中，如果我分管或参与的领域出现数据质量问题，我会主动组织业务人员分析问题根因，并推动流程或标准优化，而不是仅仅要求IT人员处理。",
   "我愿意支持在处室/单位内部建立“数据质量巡检”或“数据责任人（Data Owner）”等管理机制，并将其纳入日常业务管理或考核。",
-  "本次培训中的相关业务场景案例，对我启发较大，有助于我将方法应用到实际工作中，识别出哪些问题是数据质量的问题，应该纳入到数据治理流程中加以解决。",
   "我认为当前贵州省交通运输数据治理工作中，最迫切需要解决的一个业务数据质量问题是什么？",
   "我对以下其他数字化的培训也比较感兴趣（可多选）",
   "期望其他方面的培训"
 ];
+
+const SCORE_QUESTION_COUNT = 7;
 
 const COURSES = [
   "课程一：数字化意识与数据思维（面向全体人员）",
@@ -41,6 +42,25 @@ function loadSubmissions() {
   }
 }
 
+function saveSubmissions(submissions) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(submissions));
+}
+
+function isLegacySubmission(item) {
+  return LIKERT_OPTIONS.includes(item.answers?.q8) && Array.isArray(item.answers?.q10);
+}
+
+function getAnswer(item, questionId) {
+  if (!isLegacySubmission(item)) return item.answers?.[questionId];
+
+  const legacyMap = {
+    q8: "q9",
+    q9: "q10",
+    q10: "q11"
+  };
+  return item.answers?.[legacyMap[questionId] || questionId];
+}
+
 function formatDate(value) {
   if (!value) return "-";
   return new Date(value).toLocaleString("zh-CN");
@@ -56,7 +76,7 @@ function getRows(submissions) {
     formatDate(item.submittedAt),
     item.unit || "",
     item.name || "",
-    ...QUESTIONS.map((_, index) => normalizeAnswer(item.answers?.[`q${index + 1}`]))
+    ...QUESTIONS.map((_, index) => normalizeAnswer(getAnswer(item, `q${index + 1}`)))
   ]);
 }
 
@@ -73,7 +93,7 @@ function renderMetrics(submissions) {
   document.querySelector("#latestTime").textContent = latest ? formatDate(latest.submittedAt) : "-";
 
   const allScores = submissions.flatMap((item) =>
-    Array.from({ length: 8 }, (_, index) => SCORE_MAP[item.answers?.[`q${index + 1}`]]).filter(Boolean)
+    Array.from({ length: SCORE_QUESTION_COUNT }, (_, index) => SCORE_MAP[getAnswer(item, `q${index + 1}`)]).filter(Boolean)
   );
   const avg = average(allScores);
   document.querySelector("#avgScore").textContent = avg ? avg.toFixed(2) : "-";
@@ -88,8 +108,8 @@ function renderScoreBars(submissions) {
     return;
   }
 
-  Array.from({ length: 8 }, (_, index) => {
-    const scores = submissions.map((item) => SCORE_MAP[item.answers?.[`q${index + 1}`]]);
+  Array.from({ length: SCORE_QUESTION_COUNT }, (_, index) => {
+    const scores = submissions.map((item) => SCORE_MAP[getAnswer(item, `q${index + 1}`)]);
     const avg = average(scores);
     root.append(createBar(`第${index + 1}题`, avg ? `${avg.toFixed(2)} / 5` : "-", avg ? (avg / 5) * 100 : 0));
   });
@@ -106,7 +126,7 @@ function renderCourseBars(submissions) {
 
   const counts = new Map(COURSES.map((course) => [course, 0]));
   submissions.forEach((item) => {
-    const answers = item.answers?.q10 || [];
+    const answers = normalizeCourseAnswers(item);
     answers.forEach((course) => counts.set(course, (counts.get(course) || 0) + 1));
   });
 
@@ -132,7 +152,7 @@ function renderOpenList(id, submissions, questionId) {
   root.innerHTML = "";
   const items = submissions
     .map((item) => ({
-      text: normalizeAnswer(item.answers?.[questionId]).trim(),
+      text: normalizeAnswer(getAnswer(item, questionId)).trim(),
       unit: item.unit || "",
       name: item.name || "",
       time: item.submittedAt
@@ -156,12 +176,12 @@ function renderOpenList(id, submissions, questionId) {
 }
 
 function renderDetails(submissions) {
-  const headers = ["提交时间", "单位", "姓名", ...QUESTIONS.map((_, index) => `Q${index + 1}`)];
+  const headers = ["操作", "提交时间", "单位", "姓名", ...QUESTIONS.map((_, index) => `Q${index + 1}`)];
   const rows = getRows(submissions);
   document.querySelector("#detailCount").textContent = `${rows.length} 条`;
   document.querySelector("#detailHead").innerHTML = `<tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>`;
   document.querySelector("#detailBody").innerHTML = rows
-    .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`)
+    .map((row, index) => `<tr><td><button class="delete-row-button" type="button" data-delete-index="${index}">删除</button></td>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`)
     .join("");
 }
 
@@ -170,8 +190,8 @@ function renderDashboard() {
   renderMetrics(submissions);
   renderScoreBars(submissions);
   renderCourseBars(submissions);
-  renderOpenList("#qualityIssues", submissions, "q9");
-  renderOpenList("#trainingNeeds", submissions, "q11");
+  renderOpenList("#qualityIssues", submissions, "q8");
+  renderOpenList("#trainingNeeds", submissions, "q10");
   renderDetails(submissions);
 }
 
@@ -180,21 +200,21 @@ function exportExcel(submissions) {
   const detailRows = [detailHeaders, ...getRows(submissions)];
   const scoreRows = [["题目", "平均分", "满分"]];
 
-  Array.from({ length: 8 }, (_, index) => {
-    const scores = submissions.map((item) => SCORE_MAP[item.answers?.[`q${index + 1}`]]);
+  Array.from({ length: SCORE_QUESTION_COUNT }, (_, index) => {
+    const scores = submissions.map((item) => SCORE_MAP[getAnswer(item, `q${index + 1}`)]);
     const avg = average(scores);
     scoreRows.push([`第${index + 1}题`, avg ? avg.toFixed(2) : "", "5"]);
   });
 
   const courseRows = [["课程", "选择人数"]];
   COURSES.forEach((course) => {
-    const count = submissions.filter((item) => (item.answers?.q10 || []).includes(course)).length;
+    const count = submissions.filter((item) => normalizeCourseAnswers(item).includes(course)).length;
     courseRows.push([course, String(count)]);
   });
 
   const workbook = createXlsx([
     { name: "分析概览", rows: [["指标", "值"], ["提交总数", String(submissions.length)], ["参与单位数", String(new Set(submissions.map((item) => item.unit).filter(Boolean)).size)], ["导出时间", formatDate(new Date().toISOString())]] },
-    { name: "1-8题得分", rows: scoreRows },
+    { name: "1-7题得分", rows: scoreRows },
     { name: "课程兴趣", rows: courseRows },
     { name: "提交明细", rows: detailRows }
   ]);
@@ -386,6 +406,11 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function normalizeCourseAnswers(item) {
+  const answers = getAnswer(item, "q9");
+  return Array.isArray(answers) ? answers : [];
+}
+
 function escapeXml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -397,6 +422,23 @@ function escapeXml(value) {
 
 exportExcelButton.addEventListener("click", () => {
   exportExcel(loadSubmissions());
+});
+
+document.querySelector("#detailBody").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-delete-index]");
+  if (!button) return;
+
+  const index = Number(button.dataset.deleteIndex);
+  const submissions = loadSubmissions();
+  const target = submissions[index];
+  if (!target) return;
+
+  const label = `${target.unit || "未知单位"} ${target.name || "未知姓名"} ${formatDate(target.submittedAt)}`;
+  if (!confirm(`确定删除这条明细数据吗？\n${label}`)) return;
+
+  submissions.splice(index, 1);
+  saveSubmissions(submissions);
+  renderDashboard();
 });
 
 renderDashboard();

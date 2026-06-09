@@ -48,19 +48,13 @@ const survey = {
     },
     {
       id: "q8",
-      type: "likert",
-      required: true,
-      text: "本次培训中的相关业务场景案例，对我启发较大，有助于我将方法应用到实际工作中，识别出哪些问题是数据质量的问题，应该纳入到数据治理流程中加以解决。"
-    },
-    {
-      id: "q9",
       type: "textarea",
       required: true,
       text: "我认为当前贵州省交通运输数据治理工作中，最迫切需要解决的一个业务数据质量问题是什么？",
       placeholder: "请填写一个最迫切需要解决的业务数据质量问题"
     },
     {
-      id: "q10",
+      id: "q9",
       type: "checkbox",
       required: true,
       text: "我对以下其他数字化的培训也比较感兴趣（可多选）",
@@ -92,7 +86,7 @@ const survey = {
       ]
     },
     {
-      id: "q11",
+      id: "q10",
       type: "textarea",
       required: false,
       text: "期望其他方面的培训",
