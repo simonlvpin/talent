@@ -309,6 +309,7 @@ function closeSurveyPage() {
 
   setTimeout(() => {
     closeHelp.hidden = false;
+    closeHelp.style.display = "block";
   }, 500);
 }
 
@@ -328,7 +329,9 @@ form.addEventListener("submit", (event) => {
 
   saveSubmission(collectSubmission());
   form.hidden = true;
+  form.style.display = "none";
   resultPanel.hidden = false;
+  resultPanel.style.display = "grid";
   resultPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
@@ -336,6 +339,7 @@ resetButton.addEventListener("click", () => {
   form.reset();
   clearErrors();
   resultPanel.hidden = true;
+  resultPanel.style.display = "none";
 });
 
 closeButton.addEventListener("click", closeSurveyPage);
