@@ -229,6 +229,43 @@ td {
   background: #fee4e2;
 }
 
+.analysis-summary {
+  display: grid;
+  gap: 12px;
+}
+
+.analysis-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbf9;
+  padding: 14px;
+}
+
+.analysis-card h3 {
+  margin: 0 0 10px;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.analysis-card p,
+.analysis-card li {
+  color: #34413d;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.analysis-card ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.analysis-highlight {
+  color: var(--brand);
+  font-weight: 800;
+}
+
 @media (min-width: 820px) {
   .dashboard-header {
     grid-template-columns: 1fr auto;

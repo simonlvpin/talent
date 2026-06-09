@@ -155,16 +155,68 @@ function average(values) {
   return valid.reduce((sum, value) => sum + value, 0) / valid.length;
 }
 
+function roundNumber(value, digits = 2) {
+  if (!Number.isFinite(value)) return "";
+  return Number(value.toFixed(digits));
+}
+
+function getLikertScore(item, questionId) {
+  const score = SCORE_MAP[getAnswer(item, questionId)];
+  return Number.isFinite(score) ? score : null;
+}
+
+function getQuestionStats(submissions) {
+  return Array.from({ length: SCORE_QUESTION_COUNT }, (_, index) => {
+    const questionId = `q${index + 1}`;
+    const scores = submissions.map((item) => getLikertScore(item, questionId)).filter(Number.isFinite);
+    const counts = Object.fromEntries(LIKERT_OPTIONS.map((option) => [option, 0]));
+    submissions.forEach((item) => {
+      const answer = getAnswer(item, questionId);
+      if (answer in counts) counts[answer] += 1;
+    });
+
+    return {
+      questionId,
+      index,
+      title: QUESTIONS[index],
+      avg: average(scores),
+      validCount: scores.length,
+      counts
+    };
+  });
+}
+
+function getCourseCounts(submissions) {
+  const counts = new Map(COURSES.map((course) => [course, 0]));
+  submissions.forEach((item) => {
+    normalizeCourseAnswers(item).forEach((course) => {
+      counts.set(course, (counts.get(course) || 0) + 1);
+    });
+  });
+  return counts;
+}
+
+function getCourseRanking(submissions) {
+  const counts = getCourseCounts(submissions);
+  return COURSES
+    .map((course) => ({ course, count: counts.get(course) || 0 }))
+    .sort((a, b) => b.count - a.count || COURSES.indexOf(a.course) - COURSES.indexOf(b.course));
+}
+
+function getOverallScore(submissions) {
+  const allScores = submissions.flatMap((item) =>
+    Array.from({ length: SCORE_QUESTION_COUNT }, (_, index) => getLikertScore(item, `q${index + 1}`)).filter(Number.isFinite)
+  );
+  return average(allScores);
+}
+
 function renderMetrics(submissions) {
   document.querySelector("#totalCount").textContent = submissions.length;
   document.querySelector("#unitCount").textContent = new Set(submissions.map((item) => item.unit).filter(Boolean)).size;
   const latest = submissions[submissions.length - 1];
   document.querySelector("#latestTime").textContent = latest ? formatDate(latest.submittedAt) : "-";
 
-  const allScores = submissions.flatMap((item) =>
-    Array.from({ length: SCORE_QUESTION_COUNT }, (_, index) => SCORE_MAP[getAnswer(item, `q${index + 1}`)]).filter(Boolean)
-  );
-  const avg = average(allScores);
+  const avg = getOverallScore(submissions);
   document.querySelector("#avgScore").textContent = avg ? avg.toFixed(2) : "-";
 }
 
@@ -177,10 +229,8 @@ function renderScoreBars(submissions) {
     return;
   }
 
-  Array.from({ length: SCORE_QUESTION_COUNT }, (_, index) => {
-    const scores = submissions.map((item) => SCORE_MAP[getAnswer(item, `q${index + 1}`)]);
-    const avg = average(scores);
-    root.append(createBar(`第${index + 1}题`, avg ? `${avg.toFixed(2)} / 5` : "-", avg ? (avg / 5) * 100 : 0));
+  getQuestionStats(submissions).forEach((stat) => {
+    root.append(createBar(`第${stat.index + 1}题`, stat.avg ? `${stat.avg.toFixed(2)} / 5` : "-", stat.avg ? (stat.avg / 5) * 100 : 0));
   });
 }
 
@@ -193,12 +243,7 @@ function renderCourseBars(submissions) {
     return;
   }
 
-  const counts = new Map(COURSES.map((course) => [course, 0]));
-  submissions.forEach((item) => {
-    const answers = normalizeCourseAnswers(item);
-    answers.forEach((course) => counts.set(course, (counts.get(course) || 0) + 1));
-  });
-
+  const counts = getCourseCounts(submissions);
   const max = Math.max(1, ...counts.values());
   COURSES.forEach((course) => {
     const count = counts.get(course) || 0;
@@ -254,6 +299,56 @@ function renderDetails(submissions) {
     .join("");
 }
 
+function renderAnalysisSummary(submissions) {
+  const root = document.querySelector("#analysisSummary");
+  if (!root) return;
+
+  if (submissions.length === 0) {
+    root.innerHTML = '<p class="empty-state">暂无数据</p>';
+    return;
+  }
+
+  const questionStats = getQuestionStats(submissions);
+  const overallScore = getOverallScore(submissions);
+  const sortedStats = questionStats
+    .filter((stat) => Number.isFinite(stat.avg))
+    .sort((a, b) => b.avg - a.avg);
+  const topStat = sortedStats[0];
+  const lowStat = sortedStats[sortedStats.length - 1];
+  const courseRanking = getCourseRanking(submissions);
+  const topCourses = courseRanking.filter((item) => item.count > 0).slice(0, 3);
+  const qualityIssues = collectOpenAnswers(submissions, "q8");
+  const trainingNeeds = collectOpenAnswers(submissions, "q10");
+
+  root.innerHTML = `
+    <article class="analysis-card">
+      <h3>总体判断</h3>
+      <p>本次共回收 <span class="analysis-highlight">${submissions.length}</span> 份问卷，覆盖 <span class="analysis-highlight">${new Set(submissions.map((item) => item.unit).filter(Boolean)).size}</span> 个单位。1-7题按“非常同意=5分、同意=4分、一般=3分、不同意=2分、非常不同意=1分”换算后，整体平均分为 <span class="analysis-highlight">${overallScore ? overallScore.toFixed(2) : "-"}</span> 分。</p>
+    </article>
+    <article class="analysis-card">
+      <h3>认知与能力反馈</h3>
+      <ul>
+        <li>得分最高的是第${topStat ? topStat.index + 1 : "-"}题：${topStat ? escapeHtml(shortenQuestion(topStat.title)) : "暂无"}，平均分 ${topStat?.avg ? topStat.avg.toFixed(2) : "-"}。</li>
+        <li>相对需要继续加强的是第${lowStat ? lowStat.index + 1 : "-"}题：${lowStat ? escapeHtml(shortenQuestion(lowStat.title)) : "暂无"}，平均分 ${lowStat?.avg ? lowStat.avg.toFixed(2) : "-"}。</li>
+        <li>建议后续围绕低分题对应主题增加案例拆解、实操演练和业务部门落地动作说明。</li>
+      </ul>
+    </article>
+    <article class="analysis-card">
+      <h3>后续培训兴趣</h3>
+      <ul>
+        ${topCourses.length > 0 ? topCourses.map((item) => `<li>${escapeHtml(item.course.replace(/（.*?）/g, ""))}：${item.count} 人选择。</li>`).join("") : "<li>暂无课程选择数据。</li>"}
+      </ul>
+    </article>
+    <article class="analysis-card">
+      <h3>开放反馈摘要</h3>
+      <ul>
+        <li>数据质量问题有效反馈 ${qualityIssues.length} 条${qualityIssues.length ? `，代表性反馈包括：${escapeHtml(qualityIssues.slice(0, 3).join("；"))}` : "。"}。</li>
+        <li>其他培训期望有效反馈 ${trainingNeeds.length} 条${trainingNeeds.length ? `，代表性反馈包括：${escapeHtml(trainingNeeds.slice(0, 3).join("；"))}` : "。"}。</li>
+      </ul>
+    </article>
+  `;
+}
+
 async function renderDashboard() {
   let submissions = [];
   try {
@@ -267,33 +362,96 @@ async function renderDashboard() {
   renderOpenList("#qualityIssues", submissions, "q8");
   renderOpenList("#trainingNeeds", submissions, "q10");
   renderDetails(submissions);
+  renderAnalysisSummary(submissions);
 }
 
 function exportExcel(submissions) {
-  const detailHeaders = ["提交时间", "单位", "姓名", ...QUESTIONS.map((text, index) => `${index + 1}.${text}`)];
-  const detailRows = [detailHeaders, ...getRows(submissions)];
-  const scoreRows = [["题目", "平均分", "满分"]];
+  const detailRows = getExportDetailRows(submissions);
+  const scoreRows = [["题号", "题目", "平均分", "非常同意(5分)", "同意(4分)", "一般(3分)", "不同意(2分)", "非常不同意(1分)", "有效答卷数"]];
 
-  Array.from({ length: SCORE_QUESTION_COUNT }, (_, index) => {
-    const scores = submissions.map((item) => SCORE_MAP[getAnswer(item, `q${index + 1}`)]);
-    const avg = average(scores);
-    scoreRows.push([`第${index + 1}题`, avg ? avg.toFixed(2) : "", "5"]);
+  getQuestionStats(submissions).forEach((stat) => {
+    scoreRows.push([
+      `第${stat.index + 1}题`,
+      stat.title,
+      stat.avg ? roundNumber(stat.avg) : "",
+      stat.counts["非常同意"],
+      stat.counts["同意"],
+      stat.counts["一般"],
+      stat.counts["不同意"],
+      stat.counts["非常不同意"],
+      stat.validCount
+    ]);
   });
 
   const courseRows = [["课程", "选择人数"]];
   COURSES.forEach((course) => {
     const count = submissions.filter((item) => normalizeCourseAnswers(item).includes(course)).length;
-    courseRows.push([course, String(count)]);
+    courseRows.push([course, count]);
   });
 
   const workbook = createXlsx([
-    { name: "分析概览", rows: [["指标", "值"], ["提交总数", String(submissions.length)], ["参与单位数", String(new Set(submissions.map((item) => item.unit).filter(Boolean)).size)], ["导出时间", formatDate(new Date().toISOString())]] },
+    { name: "分析概览", rows: getAnalysisRows(submissions) },
     { name: "1-7题得分", rows: scoreRows },
     { name: "课程兴趣", rows: courseRows },
     { name: "提交明细", rows: detailRows }
   ]);
 
   downloadBlob(workbook, `talent-survey-analysis-${Date.now()}.xlsx`, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+
+function getExportDetailRows(submissions) {
+  const headers = ["提交时间", "单位", "姓名"];
+  Array.from({ length: SCORE_QUESTION_COUNT }, (_, index) => {
+    headers.push(`Q${index + 1}选项`, `Q${index + 1}分值`);
+  });
+  headers.push(`Q8.${QUESTIONS[7]}`, `Q9.${QUESTIONS[8]}`, `Q10.${QUESTIONS[9]}`);
+
+  const rows = submissions.map((item) => {
+    const row = [formatDate(item.submittedAt), item.unit || "", item.name || ""];
+    Array.from({ length: SCORE_QUESTION_COUNT }, (_, index) => {
+      const questionId = `q${index + 1}`;
+      const score = getLikertScore(item, questionId);
+      row.push(normalizeAnswer(getAnswer(item, questionId)), score ?? "");
+    });
+    row.push(
+      normalizeAnswer(getAnswer(item, "q8")),
+      normalizeAnswer(normalizeCourseAnswers(item)),
+      normalizeAnswer(getAnswer(item, "q10"))
+    );
+    return row;
+  });
+
+  return [headers, ...rows];
+}
+
+function getAnalysisRows(submissions) {
+  const questionStats = getQuestionStats(submissions);
+  const overallScore = getOverallScore(submissions);
+  const sortedStats = questionStats.filter((stat) => Number.isFinite(stat.avg)).sort((a, b) => b.avg - a.avg);
+  const topStat = sortedStats[0];
+  const lowStat = sortedStats[sortedStats.length - 1];
+  const qualityIssues = collectOpenAnswers(submissions, "q8");
+  const trainingNeeds = collectOpenAnswers(submissions, "q10");
+  const rows = [
+    ["指标", "值"],
+    ["提交总数", submissions.length],
+    ["参与单位数", new Set(submissions.map((item) => item.unit).filter(Boolean)).size],
+    ["评分规则", "非常同意=5分；同意=4分；一般=3分；不同意=2分；非常不同意=1分"],
+    ["1-7题整体平均分", overallScore ? roundNumber(overallScore) : ""],
+    ["最高得分题项", topStat ? `第${topStat.index + 1}题 ${roundNumber(topStat.avg)}分：${topStat.title}` : ""],
+    ["最低得分题项", lowStat ? `第${lowStat.index + 1}题 ${roundNumber(lowStat.avg)}分：${lowStat.title}` : ""],
+    ["数据质量问题有效反馈数", qualityIssues.length],
+    ["数据质量问题代表反馈", qualityIssues.slice(0, 5).join("；")],
+    ["其他培训期望有效反馈数", trainingNeeds.length],
+    ["其他培训期望代表反馈", trainingNeeds.slice(0, 5).join("；")],
+    ["导出时间", formatDate(new Date().toISOString())]
+  ];
+
+  getCourseRanking(submissions).forEach((item, index) => {
+    rows.push([`课程兴趣第${index + 1}名`, `${item.course}：${item.count}人`]);
+  });
+
+  return rows;
 }
 
 function createXlsx(sheets) {
@@ -335,6 +493,9 @@ function worksheetXml(rows) {
   const body = rows.map((row, rowIndex) => {
     const cells = row.map((cell, colIndex) => {
       const ref = `${columnName(colIndex + 1)}${rowIndex + 1}`;
+      if (typeof cell === "number" && Number.isFinite(cell)) {
+        return `<c r="${ref}"><v>${cell}</v></c>`;
+      }
       return `<c r="${ref}" t="inlineStr"><is><t>${escapeXml(cell)}</t></is></c>`;
     }).join("");
     return `<row r="${rowIndex + 1}">${cells}</row>`;
@@ -478,6 +639,21 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function collectOpenAnswers(submissions, questionId) {
+  return submissions
+    .map((item) => normalizeAnswer(getAnswer(item, questionId)).trim())
+    .filter(isMeaningfulOpenAnswer);
+}
+
+function isMeaningfulOpenAnswer(text) {
+  if (!text) return false;
+  return !["无", "暂无", "没有", "无。", "暂无。", "没有。"].includes(text);
+}
+
+function shortenQuestion(text) {
+  return text.length > 34 ? `${text.slice(0, 34)}...` : text;
 }
 
 function normalizeCourseAnswers(item) {
