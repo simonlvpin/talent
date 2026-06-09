@@ -136,6 +136,11 @@ h2 {
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
 }
 
+.text-field input[aria-invalid="true"] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.12);
+}
+
 .questions {
   display: grid;
   gap: 14px;
