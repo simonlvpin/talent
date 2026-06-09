@@ -62,27 +62,20 @@ async function loadDashboardSubmissions() {
     return loadSubmissions();
   }
 
-  if (!dashboardToken) {
-    dataStatus.textContent = "请输入管理员 token 后读取远程看板数据。";
-    showTokenPanel();
-    return [];
-  }
-
-  const url = new URL(appConfig.apiUrl);
+  const url = new URL(appConfig.apiUrl, window.location.origin);
   url.searchParams.set("action", "list");
-  url.searchParams.set("token", dashboardToken);
 
   const response = await fetch(url.toString(), { method: "GET" });
   const result = await response.json();
   if (!result.ok) {
-    if (result.error === "Unauthorized") {
-      dataStatus.textContent = "管理员 token 不正确，请重新输入。";
-      showTokenPanel();
-    }
     throw new Error(result.error || "Load failed");
   }
-  dataStatus.textContent = "当前为集中存储模式：看板数据来自远程表格，手机提交后电脑端可同步查看。";
-  hideTokenPanel();
+  dataStatus.textContent = "当前为集中存储模式：看板数据来自远程存储，手机提交后电脑端可同步查看。删除明细需要管理员 token。";
+  if (dashboardToken) {
+    hideTokenPanel();
+  } else {
+    showTokenPanel();
+  }
   return result.submissions || [];
 }
 
@@ -91,6 +84,12 @@ function saveSubmissions(submissions) {
 }
 
 async function deleteRemoteSubmission(id) {
+  if (!dashboardToken) {
+    showTokenPanel();
+    adminTokenInput.focus();
+    throw new Error("Missing admin token");
+  }
+
   const response = await fetch(appConfig.apiUrl, {
     method: "POST",
     headers: {

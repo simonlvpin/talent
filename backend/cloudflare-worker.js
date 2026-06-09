@@ -28,7 +28,6 @@ export default {
       }
 
       if (request.method === "GET" && action === "list") {
-        assertAdmin(url.searchParams.get("token"), env.ADMIN_TOKEN);
         return json({ ok: true, submissions: await listSubmissions(env) });
       }
 
