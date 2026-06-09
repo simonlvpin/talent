@@ -210,6 +210,88 @@ function getOverallScore(submissions) {
   return average(allScores);
 }
 
+function getAgreementRate(stat) {
+  if (!stat.validCount) return null;
+  return ((stat.counts["非常同意"] || 0) + (stat.counts["同意"] || 0)) / stat.validCount;
+}
+
+function getScoreLevel(score) {
+  if (!Number.isFinite(score)) return "暂无判断";
+  if (score >= 4.5) return "高度认同";
+  if (score >= 4) return "认同度较高";
+  if (score >= 3.5) return "基本认同";
+  if (score >= 3) return "存在分化";
+  return "需要重点加强";
+}
+
+function getDetailedAnalysis(submissions) {
+  const questionStats = getQuestionStats(submissions);
+  const overallScore = getOverallScore(submissions);
+  const unitCount = new Set(submissions.map((item) => item.unit).filter(Boolean)).size;
+  const sortedStats = questionStats
+    .filter((stat) => Number.isFinite(stat.avg))
+    .sort((a, b) => b.avg - a.avg);
+  const topStat = sortedStats[0] || null;
+  const lowStat = sortedStats[sortedStats.length - 1] || null;
+  const weakStats = [...questionStats]
+    .filter((stat) => Number.isFinite(stat.avg))
+    .sort((a, b) => a.avg - b.avg)
+    .slice(0, 3);
+  const courseRanking = getCourseRanking(submissions);
+  const selectedCourses = courseRanking.filter((item) => item.count > 0);
+  const topCourses = selectedCourses.slice(0, 3);
+  const qualityIssues = collectOpenAnswers(submissions, "q8");
+  const trainingNeeds = collectOpenAnswers(submissions, "q10");
+  const averageAgreement = average(questionStats.map(getAgreementRate).filter(Number.isFinite));
+  const conclusion = buildConclusion(overallScore, lowStat, topCourses);
+  const recommendations = buildRecommendations(overallScore, weakStats, topCourses, qualityIssues);
+
+  return {
+    questionStats,
+    overallScore,
+    unitCount,
+    topStat,
+    lowStat,
+    weakStats,
+    courseRanking,
+    selectedCourses,
+    topCourses,
+    qualityIssues,
+    trainingNeeds,
+    averageAgreement,
+    conclusion,
+    recommendations
+  };
+}
+
+function buildConclusion(overallScore, lowStat, topCourses) {
+  const level = getScoreLevel(overallScore);
+  const lowText = lowStat ? `短板主要集中在第${lowStat.index + 1}题相关能力` : "暂未形成可判断的短板";
+  const courseText = topCourses.length
+    ? `后续培训需求集中在${topCourses.map((item) => item.course.replace(/（.*?）/g, "")).join("、")}`
+    : "后续培训需求仍需继续收集";
+  return `本次调研显示，参训人员对数据治理专题培训的整体反馈处于“${level}”水平，说明培训已经在认知转变和方法理解上形成基础共识；同时，${lowText}，提示后续需要从概念理解继续走向场景化应用和机制化落地。${courseText}，建议将后续培训从单次宣贯升级为“认知提升、方法演练、机制建设、成果复盘”的连续培养路径。`;
+}
+
+function buildRecommendations(overallScore, weakStats, topCourses, qualityIssues) {
+  const weakText = weakStats.length
+    ? weakStats.map((stat) => `第${stat.index + 1}题`).join("、")
+    : "低分题项";
+  const courseText = topCourses.length
+    ? topCourses.map((item) => item.course.replace(/（.*?）/g, "")).join("、")
+    : "数字化能力提升课程";
+  const issueText = qualityIssues.length
+    ? "以开放题中提到的真实数据质量问题为样本建立案例库"
+    : "持续收集各处室真实数据质量问题并建立案例库";
+
+  return [
+    `围绕${weakText}开展二次强化培训，把抽象概念转化为交通运输业务中的流程、岗位、标准和数据源责任分析。`,
+    `${issueText}，每个案例明确问题现象、责任主体、源头原因、整改动作和闭环验收口径。`,
+    `优先安排${courseText}等需求较集中的课程，采用“短讲授+小组工作坊+现场产出”的形式，让参训人员带着本单位问题形成可执行清单。`,
+    "推动建立 Data Owner、数据质量巡检和问题台账机制，将培训成果固化到日常业务管理，而不是停留在一次性学习反馈。"
+  ];
+}
+
 function renderMetrics(submissions) {
   document.querySelector("#totalCount").textContent = submissions.length;
   document.querySelector("#unitCount").textContent = new Set(submissions.map((item) => item.unit).filter(Boolean)).size;
@@ -308,42 +390,53 @@ function renderAnalysisSummary(submissions) {
     return;
   }
 
-  const questionStats = getQuestionStats(submissions);
-  const overallScore = getOverallScore(submissions);
-  const sortedStats = questionStats
-    .filter((stat) => Number.isFinite(stat.avg))
-    .sort((a, b) => b.avg - a.avg);
-  const topStat = sortedStats[0];
-  const lowStat = sortedStats[sortedStats.length - 1];
-  const courseRanking = getCourseRanking(submissions);
-  const topCourses = courseRanking.filter((item) => item.count > 0).slice(0, 3);
-  const qualityIssues = collectOpenAnswers(submissions, "q8");
-  const trainingNeeds = collectOpenAnswers(submissions, "q10");
+  const analysis = getDetailedAnalysis(submissions);
 
   root.innerHTML = `
     <article class="analysis-card">
-      <h3>总体判断</h3>
-      <p>本次共回收 <span class="analysis-highlight">${submissions.length}</span> 份问卷，覆盖 <span class="analysis-highlight">${new Set(submissions.map((item) => item.unit).filter(Boolean)).size}</span> 个单位。1-7题按“非常同意=5分、同意=4分、一般=3分、不同意=2分、非常不同意=1分”换算后，整体平均分为 <span class="analysis-highlight">${overallScore ? overallScore.toFixed(2) : "-"}</span> 分。</p>
+      <h3>一、总体判断</h3>
+      <p>本次共回收 <span class="analysis-highlight">${submissions.length}</span> 份问卷，覆盖 <span class="analysis-highlight">${analysis.unitCount}</span> 个单位。1-7题按“非常同意=5分、同意=4分、一般=3分、不同意=2分、非常不同意=1分”换算后，整体平均分为 <span class="analysis-highlight">${analysis.overallScore ? analysis.overallScore.toFixed(2) : "-"}</span> 分，整体处于 <span class="analysis-highlight">${escapeHtml(getScoreLevel(analysis.overallScore))}</span> 区间。</p>
+      <p>从平均认同率看，1-7题中选择“非常同意/同意”的平均占比为 <span class="analysis-highlight">${analysis.averageAgreement ? `${Math.round(analysis.averageAgreement * 100)}%` : "-"}</span>，说明培训对“数据治理不是单纯IT问题，而是业务管理问题”的核心导向已经形成一定接受度。</p>
     </article>
     <article class="analysis-card">
-      <h3>认知与能力反馈</h3>
+      <h3>二、核心发现</h3>
       <ul>
-        <li>得分最高的是第${topStat ? topStat.index + 1 : "-"}题：${topStat ? escapeHtml(shortenQuestion(topStat.title)) : "暂无"}，平均分 ${topStat?.avg ? topStat.avg.toFixed(2) : "-"}。</li>
-        <li>相对需要继续加强的是第${lowStat ? lowStat.index + 1 : "-"}题：${lowStat ? escapeHtml(shortenQuestion(lowStat.title)) : "暂无"}，平均分 ${lowStat?.avg ? lowStat.avg.toFixed(2) : "-"}。</li>
-        <li>建议后续围绕低分题对应主题增加案例拆解、实操演练和业务部门落地动作说明。</li>
+        <li>优势项：第${analysis.topStat ? analysis.topStat.index + 1 : "-"}题得分最高，平均分 ${analysis.topStat?.avg ? analysis.topStat.avg.toFixed(2) : "-"}，对应主题为“${analysis.topStat ? escapeHtml(shortenQuestion(analysis.topStat.title, 42)) : "暂无"}”。</li>
+        <li>短板项：第${analysis.lowStat ? analysis.lowStat.index + 1 : "-"}题得分最低，平均分 ${analysis.lowStat?.avg ? analysis.lowStat.avg.toFixed(2) : "-"}，对应主题为“${analysis.lowStat ? escapeHtml(shortenQuestion(analysis.lowStat.title, 42)) : "暂无"}”。</li>
+        <li>低分优先关注题项为：${analysis.weakStats.map((stat) => `第${stat.index + 1}题 ${stat.avg ? stat.avg.toFixed(2) : "-"}分`).join("；") || "暂无"}。</li>
       </ul>
     </article>
     <article class="analysis-card">
-      <h3>后续培训兴趣</h3>
+      <h3>三、培训需求洞察</h3>
       <ul>
-        ${topCourses.length > 0 ? topCourses.map((item) => `<li>${escapeHtml(item.course.replace(/（.*?）/g, ""))}：${item.count} 人选择。</li>`).join("") : "<li>暂无课程选择数据。</li>"}
+        ${analysis.topCourses.length > 0 ? analysis.topCourses.map((item) => `<li>${escapeHtml(item.course.replace(/（.*?）/g, ""))}：${item.count} 人选择，占比 ${Math.round((item.count / submissions.length) * 100)}%。</li>`).join("") : "<li>暂无课程选择数据。</li>"}
+        <li>课程选择结果表明，参训人员对 AI 领导力、AI 落地工作坊和数据资产/价值化类内容关注度较高，后续培训应兼顾管理认知、工具实操和业务场景产出。</li>
       </ul>
     </article>
     <article class="analysis-card">
-      <h3>开放反馈摘要</h3>
+      <h3>四、开放反馈研判</h3>
       <ul>
-        <li>数据质量问题有效反馈 ${qualityIssues.length} 条${qualityIssues.length ? `，代表性反馈包括：${escapeHtml(qualityIssues.slice(0, 3).join("；"))}` : "。"}。</li>
-        <li>其他培训期望有效反馈 ${trainingNeeds.length} 条${trainingNeeds.length ? `，代表性反馈包括：${escapeHtml(trainingNeeds.slice(0, 3).join("；"))}` : "。"}。</li>
+        <li>数据质量问题有效反馈 ${analysis.qualityIssues.length} 条${analysis.qualityIssues.length ? `，代表性反馈包括：${escapeHtml(analysis.qualityIssues.slice(0, 3).join("；"))}` : "。后续建议继续引导填写具体业务场景，提升问题颗粒度。"}。</li>
+        <li>其他培训期望有效反馈 ${analysis.trainingNeeds.length} 条${analysis.trainingNeeds.length ? `，代表性反馈包括：${escapeHtml(analysis.trainingNeeds.slice(0, 3).join("；"))}` : "。"}。</li>
+        <li>开放题反馈应进一步沉淀为“问题清单-责任主体-治理动作-验收标准”的闭环台账，用于指导后续数据治理专项推进。</li>
+      </ul>
+    </article>
+    <article class="analysis-card">
+      <h3>五、建议</h3>
+      <ol>
+        ${analysis.recommendations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+      </ol>
+    </article>
+    <article class="analysis-card analysis-conclusion">
+      <h3>六、结论</h3>
+      <p>${escapeHtml(analysis.conclusion)}</p>
+      <p>总体来看，本次培训已经具备继续深化的基础，下一阶段重点不应只是增加知识点，而应转向“用真实业务问题检验数据治理能力”，通过机制建设和持续复盘把培训成果转化为可执行、可追踪、可考核的数据治理行动。</p>
+    </article>
+    <article class="analysis-card">
+      <h3>七、注意事项</h3>
+      <ul>
+        <li>当前样本量为 ${submissions.length} 份，分析结论更适合作为阶段性反馈参考；随着样本增加，看板会自动更新判断。</li>
+        <li>若存在测试数据，可在明细中删除后重新观察分析结果，底部结论会随数据变化自动刷新。</li>
       </ul>
     </article>
   `;
@@ -425,29 +518,31 @@ function getExportDetailRows(submissions) {
 }
 
 function getAnalysisRows(submissions) {
-  const questionStats = getQuestionStats(submissions);
-  const overallScore = getOverallScore(submissions);
-  const sortedStats = questionStats.filter((stat) => Number.isFinite(stat.avg)).sort((a, b) => b.avg - a.avg);
-  const topStat = sortedStats[0];
-  const lowStat = sortedStats[sortedStats.length - 1];
-  const qualityIssues = collectOpenAnswers(submissions, "q8");
-  const trainingNeeds = collectOpenAnswers(submissions, "q10");
+  const analysis = getDetailedAnalysis(submissions);
   const rows = [
     ["指标", "值"],
     ["提交总数", submissions.length],
-    ["参与单位数", new Set(submissions.map((item) => item.unit).filter(Boolean)).size],
+    ["参与单位数", analysis.unitCount],
     ["评分规则", "非常同意=5分；同意=4分；一般=3分；不同意=2分；非常不同意=1分"],
-    ["1-7题整体平均分", overallScore ? roundNumber(overallScore) : ""],
-    ["最高得分题项", topStat ? `第${topStat.index + 1}题 ${roundNumber(topStat.avg)}分：${topStat.title}` : ""],
-    ["最低得分题项", lowStat ? `第${lowStat.index + 1}题 ${roundNumber(lowStat.avg)}分：${lowStat.title}` : ""],
-    ["数据质量问题有效反馈数", qualityIssues.length],
-    ["数据质量问题代表反馈", qualityIssues.slice(0, 5).join("；")],
-    ["其他培训期望有效反馈数", trainingNeeds.length],
-    ["其他培训期望代表反馈", trainingNeeds.slice(0, 5).join("；")],
+    ["1-7题整体平均分", analysis.overallScore ? roundNumber(analysis.overallScore) : ""],
+    ["整体评价等级", getScoreLevel(analysis.overallScore)],
+    ["平均认同率", analysis.averageAgreement ? `${Math.round(analysis.averageAgreement * 100)}%` : ""],
+    ["最高得分题项", analysis.topStat ? `第${analysis.topStat.index + 1}题 ${roundNumber(analysis.topStat.avg)}分：${analysis.topStat.title}` : ""],
+    ["最低得分题项", analysis.lowStat ? `第${analysis.lowStat.index + 1}题 ${roundNumber(analysis.lowStat.avg)}分：${analysis.lowStat.title}` : ""],
+    ["低分优先关注题项", analysis.weakStats.map((stat) => `第${stat.index + 1}题 ${roundNumber(stat.avg)}分`).join("；")],
+    ["数据质量问题有效反馈数", analysis.qualityIssues.length],
+    ["数据质量问题代表反馈", analysis.qualityIssues.slice(0, 5).join("；")],
+    ["其他培训期望有效反馈数", analysis.trainingNeeds.length],
+    ["其他培训期望代表反馈", analysis.trainingNeeds.slice(0, 5).join("；")],
+    ["分析结论", analysis.conclusion],
+    ["改进建议1", analysis.recommendations[0] || ""],
+    ["改进建议2", analysis.recommendations[1] || ""],
+    ["改进建议3", analysis.recommendations[2] || ""],
+    ["改进建议4", analysis.recommendations[3] || ""],
     ["导出时间", formatDate(new Date().toISOString())]
   ];
 
-  getCourseRanking(submissions).forEach((item, index) => {
+  analysis.courseRanking.forEach((item, index) => {
     rows.push([`课程兴趣第${index + 1}名`, `${item.course}：${item.count}人`]);
   });
 
@@ -649,11 +744,11 @@ function collectOpenAnswers(submissions, questionId) {
 
 function isMeaningfulOpenAnswer(text) {
   if (!text) return false;
-  return !["无", "暂无", "没有", "无。", "暂无。", "没有。"].includes(text);
+  return !["无", "暂无", "没有", "好", "好的", "非常好", "无。", "暂无。", "没有。", "好。", "好的。", "非常好。"].includes(text);
 }
 
-function shortenQuestion(text) {
-  return text.length > 34 ? `${text.slice(0, 34)}...` : text;
+function shortenQuestion(text, length = 34) {
+  return text.length > length ? `${text.slice(0, length)}...` : text;
 }
 
 function normalizeCourseAnswers(item) {

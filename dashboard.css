@@ -254,7 +254,8 @@ td {
   line-height: 1.65;
 }
 
-.analysis-card ul {
+.analysis-card ul,
+.analysis-card ol {
   display: grid;
   gap: 6px;
   margin: 0;
@@ -264,6 +265,11 @@ td {
 .analysis-highlight {
   color: var(--brand);
   font-weight: 800;
+}
+
+.analysis-conclusion {
+  border-color: rgba(15, 118, 110, 0.28);
+  background: #eef8f4;
 }
 
 @media (min-width: 820px) {
