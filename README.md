@@ -27,8 +27,18 @@
 
 项目已提供两个后端模板：
 
+- 最省事：Cloudflare Pages Functions，仓库内置 `functions/api/survey.js`，适合 Cloudflare 直接连接 GitHub 自动部署。
 - 推荐：`backend/cloudflare-worker.js`，适合作为网页 API，支持跨域、提交、查询、删除。
 - 备选：`backend/google-apps-script.gs`，适合落到 Google Sheet，但跨域访问环境可能需要额外处理。
+
+Cloudflare Pages 配置方式：
+
+1. 在 Cloudflare Pages 中连接 GitHub 的 `talent` 仓库。
+2. 构建设置保持静态站点即可，构建命令可为空，输出目录设为 `/` 或项目根目录。
+3. 创建 KV 命名空间，并在 Pages 项目中绑定变量名 `SURVEY_KV`。
+4. 在 Pages 项目环境变量中设置 `ADMIN_TOKEN`，值为一个足够长的随机字符串。
+5. 使用 Cloudflare Pages 分配的访问地址打开问卷，不要再使用 `github.io` 地址。
+6. 管理员打开 Dashboard 时使用 `dashboard.html?token=你的ADMIN_TOKEN`。
 
 Cloudflare Worker 配置方式：
 

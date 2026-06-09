@@ -1,4 +1,4 @@
 window.TALENT_CONFIG = {
-  apiUrl: "",
+  apiUrl: location.hostname.endsWith("github.io") ? "" : "/api/survey",
   adminToken: ""
 };
