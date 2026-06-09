@@ -209,6 +209,11 @@ h2 {
   gap: 10px;
 }
 
+.result-actions .primary-button:only-child,
+.result-actions .secondary-button:only-child {
+  grid-column: 1 / -1;
+}
+
 .primary-button,
 .secondary-button {
   min-height: 48px;
@@ -241,6 +246,11 @@ h2 {
 
 .result-panel p {
   color: var(--muted);
+}
+
+.close-help {
+  margin-bottom: 0;
+  font-size: 14px;
 }
 
 #resultText {

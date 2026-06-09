@@ -104,13 +104,10 @@ const survey = {
 const form = document.querySelector("#surveyForm");
 const questionsRoot = document.querySelector("#questions");
 const resultPanel = document.querySelector("#resultPanel");
-const resultText = document.querySelector("#resultText");
 const resetButton = document.querySelector("#resetButton");
-const copyButton = document.querySelector("#copyButton");
-const downloadButton = document.querySelector("#downloadButton");
+const closeButton = document.querySelector("#closeButton");
+const closeHelp = document.querySelector("#closeHelp");
 const identitySection = document.querySelector(".identity-section");
-
-let lastSubmission = null;
 
 function createQuestionCard(question, index) {
   const card = document.createElement("article");
@@ -297,61 +294,28 @@ function validateForm() {
   return true;
 }
 
-function formatSubmission(submission) {
-  const lines = [
-    `问卷：${submission.surveyTitle}`,
-    `提交时间：${new Date(submission.submittedAt).toLocaleString("zh-CN")}`,
-    `单位：${submission.unit}`,
-    `姓名：${submission.name}`,
-    ""
-  ];
-
-  survey.questions.forEach((question, index) => {
-    const answer = submission.answers[question.id];
-    const normalizedAnswer = Array.isArray(answer) ? answer.join("；") : answer;
-    lines.push(`${index + 1}、${question.text}`);
-    lines.push(normalizedAnswer || "未填写");
-    lines.push("");
-  });
-
-  return lines.join("\n");
-}
-
-function toCsv(submission) {
-  const headers = ["提交时间", "单位", "姓名", ...survey.questions.map((question, index) => `${index + 1}.${question.text}`)];
-  const row = [
-    new Date(submission.submittedAt).toLocaleString("zh-CN"),
-    submission.unit,
-    submission.name,
-    ...survey.questions.map((question) => {
-      const answer = submission.answers[question.id];
-      return Array.isArray(answer) ? answer.join("；") : answer;
-    })
-  ];
-
-  return [headers, row]
-    .map((items) => items.map((item) => `"${String(item || "").replaceAll('"', '""')}"`).join(","))
-    .join("\n");
-}
-
-function downloadCsv(submission) {
-  const csv = `\uFEFF${toCsv(submission)}`;
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `talent-survey-${Date.now()}.csv`;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
 function saveSubmission(submission) {
   const key = `talent-survey:${survey.id}`;
   const existing = JSON.parse(localStorage.getItem(key) || "[]");
   existing.push(submission);
   localStorage.setItem(key, JSON.stringify(existing));
+}
+
+function closeSurveyPage() {
+  if (window.WeixinJSBridge) {
+    window.WeixinJSBridge.call("closeWindow");
+    return;
+  }
+
+  document.addEventListener("WeixinJSBridgeReady", () => {
+    window.WeixinJSBridge.call("closeWindow");
+  }, { once: true });
+
+  window.close();
+
+  setTimeout(() => {
+    closeHelp.hidden = false;
+  }, 500);
 }
 
 function escapeHtml(value) {
@@ -368,9 +332,8 @@ form.addEventListener("submit", (event) => {
 
   if (!validateForm()) return;
 
-  lastSubmission = collectSubmission();
-  saveSubmission(lastSubmission);
-  resultText.textContent = formatSubmission(lastSubmission);
+  saveSubmission(collectSubmission());
+  form.hidden = true;
   resultPanel.hidden = false;
   resultPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 });
@@ -379,20 +342,8 @@ resetButton.addEventListener("click", () => {
   form.reset();
   clearErrors();
   resultPanel.hidden = true;
-  lastSubmission = null;
 });
 
-copyButton.addEventListener("click", async () => {
-  if (!lastSubmission) return;
-  await navigator.clipboard.writeText(formatSubmission(lastSubmission));
-  copyButton.textContent = "已复制";
-  setTimeout(() => {
-    copyButton.textContent = "复制结果";
-  }, 1600);
-});
-
-downloadButton.addEventListener("click", () => {
-  if (lastSubmission) downloadCsv(lastSubmission);
-});
+closeButton.addEventListener("click", closeSurveyPage);
 
 renderSurvey();
