@@ -71,11 +71,7 @@ async function loadDashboardSubmissions() {
     throw new Error(result.error || "Load failed");
   }
   dataStatus.textContent = "当前为集中存储模式：看板数据来自远程存储，手机提交后电脑端可同步查看。删除明细需要管理员 token。";
-  if (dashboardToken) {
-    hideTokenPanel();
-  } else {
-    showTokenPanel();
-  }
+  hideTokenPanel();
   return result.submissions || [];
 }
 
