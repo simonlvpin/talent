@@ -47,6 +47,27 @@
   color: var(--text);
 }
 
+.token-panel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.token-panel input {
+  min-height: 48px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  outline: none;
+}
+
+.token-panel input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -229,7 +250,8 @@ td {
 
 @media (max-width: 430px) {
   .metric-grid,
-  .dashboard-actions {
+  .dashboard-actions,
+  .token-panel {
     grid-template-columns: 1fr;
   }
 }
