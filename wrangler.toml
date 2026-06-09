@@ -1,0 +1,7 @@
+name = "talent"
+compatibility_date = "2025-06-10"
+pages_build_output_dir = "."
+
+[[kv_namespaces]]
+binding = "SURVEY_KV"
+id = "5b50fff477134d50bc76c5612c16fb7f"

@@ -6,6 +6,11 @@
 
 - 贵州省交通运输厅数据治理专题培训调查问卷
 
+## 正式访问地址
+
+- 问卷填写：https://talent-b0x.pages.dev/
+- 管理看板：https://talent-b0x.pages.dev/dashboard.html
+
 ## 使用方式
 
 打开 `index.html` 即可查看移动端友好的问卷页面。页面为纯静态实现，适合部署到 GitHub Pages。
@@ -30,6 +35,13 @@
 - 最省事：Cloudflare Pages Functions，仓库内置 `functions/api/survey.js`，适合 Cloudflare 直接连接 GitHub 自动部署。
 - 推荐：`backend/cloudflare-worker.js`，适合作为网页 API，支持跨域、提交、查询、删除。
 - 备选：`backend/google-apps-script.gs`，适合落到 Google Sheet，但跨域访问环境可能需要额外处理。
+
+Cloudflare Pages 已部署：
+
+- 项目：`talent`
+- 地址：https://talent-b0x.pages.dev/
+- KV 绑定：`SURVEY_KV`
+- 管理员 token：通过 Cloudflare Pages/Worker Secret 保存为 `ADMIN_TOKEN`
 
 Cloudflare Pages 配置方式：
 
