@@ -33,6 +33,14 @@ const COURSES = [
 ];
 
 const exportExcelButton = document.querySelector("#exportExcelButton");
+const dataStatus = document.querySelector("#dataStatus");
+const appConfig = window.TALENT_CONFIG || {};
+const urlParams = new URLSearchParams(window.location.search);
+const configuredAdminToken = urlParams.get("token") || appConfig.adminToken || localStorage.getItem("talent-dashboard-token") || "";
+
+if (urlParams.get("token")) {
+  localStorage.setItem("talent-dashboard-token", urlParams.get("token"));
+}
 
 function loadSubmissions() {
   try {
@@ -42,8 +50,45 @@ function loadSubmissions() {
   }
 }
 
+async function loadDashboardSubmissions() {
+  if (!appConfig.apiUrl) {
+    dataStatus.textContent = "当前为本地模式：只能看到本浏览器保存的数据。配置集中存储 API 后，电脑端可查看所有手机提交的数据。";
+    return loadSubmissions();
+  }
+
+  const url = new URL(appConfig.apiUrl);
+  url.searchParams.set("action", "list");
+  url.searchParams.set("token", configuredAdminToken);
+
+  const response = await fetch(url.toString(), { method: "GET" });
+  const result = await response.json();
+  if (!result.ok) {
+    throw new Error(result.error || "Load failed");
+  }
+  dataStatus.textContent = "当前为集中存储模式：看板数据来自远程表格，手机提交后电脑端可同步查看。";
+  return result.submissions || [];
+}
+
 function saveSubmissions(submissions) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(submissions));
+}
+
+async function deleteRemoteSubmission(id) {
+  const response = await fetch(appConfig.apiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
+    body: JSON.stringify({
+      action: "delete",
+      id,
+      token: configuredAdminToken
+    })
+  });
+  const result = await response.json();
+  if (!result.ok) {
+    throw new Error(result.error || "Delete failed");
+  }
 }
 
 function isLegacySubmission(item) {
@@ -185,8 +230,13 @@ function renderDetails(submissions) {
     .join("");
 }
 
-function renderDashboard() {
-  const submissions = loadSubmissions();
+async function renderDashboard() {
+  let submissions = [];
+  try {
+    submissions = await loadDashboardSubmissions();
+  } catch (error) {
+    dataStatus.textContent = "读取远程数据失败，请检查 API 地址或管理员 token。";
+  }
   renderMetrics(submissions);
   renderScoreBars(submissions);
   renderCourseBars(submissions);
@@ -421,24 +471,34 @@ function escapeXml(value) {
 }
 
 exportExcelButton.addEventListener("click", () => {
-  exportExcel(loadSubmissions());
+  loadDashboardSubmissions()
+    .then(exportExcel)
+    .catch(() => alert("读取数据失败，暂时无法导出 Excel。"));
 });
 
-document.querySelector("#detailBody").addEventListener("click", (event) => {
+document.querySelector("#detailBody").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-delete-index]");
   if (!button) return;
 
   const index = Number(button.dataset.deleteIndex);
-  const submissions = loadSubmissions();
+  const submissions = appConfig.apiUrl ? await loadDashboardSubmissions() : loadSubmissions();
   const target = submissions[index];
   if (!target) return;
 
   const label = `${target.unit || "未知单位"} ${target.name || "未知姓名"} ${formatDate(target.submittedAt)}`;
   if (!confirm(`确定删除这条明细数据吗？\n${label}`)) return;
 
-  submissions.splice(index, 1);
-  saveSubmissions(submissions);
-  renderDashboard();
+  try {
+    if (appConfig.apiUrl) {
+      await deleteRemoteSubmission(target.id);
+    } else {
+      submissions.splice(index, 1);
+      saveSubmissions(submissions);
+    }
+    await renderDashboard();
+  } catch (error) {
+    alert("删除失败，请检查网络或管理员 token。");
+  }
 });
 
 renderDashboard();

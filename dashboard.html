@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#0f766e">
     <title>调查问卷分析仪表盘</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="styles.css?v=20260609-2325">
+    <link rel="stylesheet" href="dashboard.css?v=20260609-2325">
   </head>
   <body>
     <main class="dashboard-shell">
@@ -23,8 +23,8 @@
       </header>
 
       <section class="notice-panel">
-        <strong>数据说明</strong>
-        <span>当前 GitHub Pages 版本会把提交记录保存在浏览器本地。若要汇总所有手机提交的数据，需要接入后端或表单 API；问卷页面不会显示他人数据，只有本管理页展示分析与明细。</span>
+        <strong>数据状态</strong>
+        <span id="dataStatus">正在读取数据...</span>
       </section>
 
       <section class="metric-grid" aria-label="关键指标">
@@ -58,12 +58,12 @@
       </section>
 
       <section class="dashboard-panel">
-        <h2>第9题：迫切需要解决的数据质量问题</h2>
+        <h2>第8题：迫切需要解决的数据质量问题</h2>
         <div id="qualityIssues" class="open-list"></div>
       </section>
 
       <section class="dashboard-panel">
-        <h2>第11题：其他培训期望</h2>
+        <h2>第10题：其他培训期望</h2>
         <div id="trainingNeeds" class="open-list"></div>
       </section>
 
@@ -81,6 +81,7 @@
       </section>
     </main>
 
-    <script src="dashboard.js"></script>
+    <script src="config.js?v=20260609-2325"></script>
+    <script src="dashboard.js?v=20260609-2325"></script>
   </body>
 </html>

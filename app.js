@@ -102,6 +102,7 @@ const resetButton = document.querySelector("#resetButton");
 const closeButton = document.querySelector("#closeButton");
 const closeHelp = document.querySelector("#closeHelp");
 const identitySection = document.querySelector(".identity-section");
+const appConfig = window.TALENT_CONFIG || {};
 
 function createQuestionCard(question, index) {
   const card = document.createElement("article");
@@ -288,11 +289,33 @@ function validateForm() {
   return true;
 }
 
-function saveSubmission(submission) {
+async function saveSubmission(submission) {
+  if (appConfig.apiUrl) {
+    await submitRemote(submission);
+    return;
+  }
+
   const key = `talent-survey:${survey.id}`;
   const existing = JSON.parse(localStorage.getItem(key) || "[]");
   existing.push(submission);
   localStorage.setItem(key, JSON.stringify(existing));
+}
+
+async function submitRemote(submission) {
+  const response = await fetch(appConfig.apiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
+    body: JSON.stringify({
+      action: "create",
+      submission
+    })
+  });
+  const result = await response.json();
+  if (!result.ok) {
+    throw new Error(result.error || "Submit failed");
+  }
 }
 
 function closeSurveyPage() {
@@ -322,17 +345,28 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-form.addEventListener("submit", (event) => {
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   if (!validateForm()) return;
 
-  saveSubmission(collectSubmission());
-  form.hidden = true;
-  form.style.display = "none";
-  resultPanel.hidden = false;
-  resultPanel.style.display = "grid";
-  resultPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  const submitButton = form.querySelector("button[type='submit']");
+  submitButton.disabled = true;
+  submitButton.textContent = "提交中...";
+
+  try {
+    await saveSubmission(collectSubmission());
+    form.hidden = true;
+    form.style.display = "none";
+    resultPanel.hidden = false;
+    resultPanel.style.display = "grid";
+    resultPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (error) {
+    showError(identitySection, "提交失败，请检查网络后重试，或联系工作人员。");
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "提交问卷";
+  }
 });
 
 resetButton.addEventListener("click", () => {
