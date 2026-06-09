@@ -89,7 +89,7 @@ const survey = {
       id: "q10",
       type: "textarea",
       required: false,
-      text: "期望其他方面的培训",
+      text: "其他方面的培训需求或者建议",
       placeholder: "如有其他期望培训方向，请填写"
     }
   ]

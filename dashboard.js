@@ -18,7 +18,7 @@ const QUESTIONS = [
   "我愿意支持在处室/单位内部建立“数据质量巡检”或“数据责任人（Data Owner）”等管理机制，并将其纳入日常业务管理或考核。",
   "我认为当前贵州省交通运输数据治理工作中，最迫切需要解决的一个业务数据质量问题是什么？",
   "我对以下其他数字化的培训也比较感兴趣（可多选）",
-  "期望其他方面的培训"
+  "其他方面的培训需求或者建议"
 ];
 
 const SCORE_QUESTION_COUNT = 7;
@@ -417,7 +417,7 @@ function renderAnalysisSummary(submissions) {
       <h3>四、开放反馈研判</h3>
       <ul>
         <li>数据质量问题有效反馈 ${analysis.qualityIssues.length} 条${analysis.qualityIssues.length ? `，代表性反馈包括：${escapeHtml(analysis.qualityIssues.slice(0, 3).join("；"))}` : "。后续建议继续引导填写具体业务场景，提升问题颗粒度。"}。</li>
-        <li>其他培训期望有效反馈 ${analysis.trainingNeeds.length} 条${analysis.trainingNeeds.length ? `，代表性反馈包括：${escapeHtml(analysis.trainingNeeds.slice(0, 3).join("；"))}` : "。"}。</li>
+        <li>其他方面的培训需求或者建议有效反馈 ${analysis.trainingNeeds.length} 条${analysis.trainingNeeds.length ? `，代表性反馈包括：${escapeHtml(analysis.trainingNeeds.slice(0, 3).join("；"))}` : "。"}。</li>
         <li>开放题反馈应进一步沉淀为“问题清单-责任主体-治理动作-验收标准”的闭环台账，用于指导后续数据治理专项推进。</li>
       </ul>
     </article>
@@ -532,8 +532,8 @@ function getAnalysisRows(submissions) {
     ["低分优先关注题项", analysis.weakStats.map((stat) => `第${stat.index + 1}题 ${roundNumber(stat.avg)}分`).join("；")],
     ["数据质量问题有效反馈数", analysis.qualityIssues.length],
     ["数据质量问题代表反馈", analysis.qualityIssues.slice(0, 5).join("；")],
-    ["其他培训期望有效反馈数", analysis.trainingNeeds.length],
-    ["其他培训期望代表反馈", analysis.trainingNeeds.slice(0, 5).join("；")],
+    ["其他方面的培训需求或者建议有效反馈数", analysis.trainingNeeds.length],
+    ["其他方面的培训需求或者建议代表反馈", analysis.trainingNeeds.slice(0, 5).join("；")],
     ["分析结论", analysis.conclusion],
     ["改进建议1", analysis.recommendations[0] || ""],
     ["改进建议2", analysis.recommendations[1] || ""],
