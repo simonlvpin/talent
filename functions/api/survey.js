@@ -49,6 +49,8 @@ async function createSubmission(env, submission = {}) {
     surveyId: submission.surveyId || "",
     surveyTitle: submission.surveyTitle || "",
     submittedAt: submission.submittedAt || new Date().toISOString(),
+    respondentId: submission.respondentId || "",
+    role: submission.role || "",
     unit: submission.unit || "",
     name: submission.name || "",
     answers: submission.answers || {}

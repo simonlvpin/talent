@@ -22,6 +22,7 @@ const QUESTIONS = [
 ];
 
 const SCORE_QUESTION_COUNT = 7;
+const ROLE_OPTIONS = ["管理角色", "技术角色"];
 
 const COURSES = [
   "课程一：AI 领导力（面向中高层管理干部）",
@@ -132,6 +133,31 @@ function formatDate(value) {
   return new Date(value).toLocaleString("zh-CN");
 }
 
+function getRespondentLabel(item) {
+  if (item.respondentId) return item.respondentId;
+  if (item.id) return `历史-${item.id.slice(0, 8)}`;
+  return "未知用户";
+}
+
+function getRoleLabel(item) {
+  return item.role || "历史数据";
+}
+
+function getRoleCount(submissions) {
+  return new Set(submissions.map(getRoleLabel).filter(Boolean)).size;
+}
+
+function getRoleDistribution(submissions) {
+  const counts = new Map([...ROLE_OPTIONS, "历史数据"].map((role) => [role, 0]));
+  submissions.forEach((item) => {
+    const role = getRoleLabel(item);
+    counts.set(role, (counts.get(role) || 0) + 1);
+  });
+  return [...counts.entries()]
+    .filter(([, count]) => count > 0)
+    .map(([role, count]) => ({ role, count }));
+}
+
 function normalizeAnswer(answer) {
   if (Array.isArray(answer)) return answer.join("；");
   return answer || "";
@@ -140,8 +166,8 @@ function normalizeAnswer(answer) {
 function getRows(submissions) {
   return submissions.map((item) => [
     formatDate(item.submittedAt),
-    item.unit || "",
-    item.name || "",
+    getRespondentLabel(item),
+    getRoleLabel(item),
     ...QUESTIONS.map((_, index) => {
       const questionId = `q${index + 1}`;
       return questionId === "q9" ? normalizeAnswer(normalizeCourseAnswers(item)) : normalizeAnswer(getAnswer(item, questionId));
@@ -227,7 +253,8 @@ function getScoreLevel(score) {
 function getDetailedAnalysis(submissions) {
   const questionStats = getQuestionStats(submissions);
   const overallScore = getOverallScore(submissions);
-  const unitCount = new Set(submissions.map((item) => item.unit).filter(Boolean)).size;
+  const roleCount = getRoleCount(submissions);
+  const roleDistribution = getRoleDistribution(submissions);
   const sortedStats = questionStats
     .filter((stat) => Number.isFinite(stat.avg))
     .sort((a, b) => b.avg - a.avg);
@@ -249,7 +276,8 @@ function getDetailedAnalysis(submissions) {
   return {
     questionStats,
     overallScore,
-    unitCount,
+    roleCount,
+    roleDistribution,
     topStat,
     lowStat,
     weakStats,
@@ -294,7 +322,7 @@ function buildRecommendations(overallScore, weakStats, topCourses, qualityIssues
 
 function renderMetrics(submissions) {
   document.querySelector("#totalCount").textContent = submissions.length;
-  document.querySelector("#unitCount").textContent = new Set(submissions.map((item) => item.unit).filter(Boolean)).size;
+  document.querySelector("#unitCount").textContent = getRoleCount(submissions);
   const latest = submissions[submissions.length - 1];
   document.querySelector("#latestTime").textContent = latest ? formatDate(latest.submittedAt) : "-";
 
@@ -349,8 +377,8 @@ function renderOpenList(id, submissions, questionId) {
   const items = submissions
     .map((item) => ({
       text: normalizeAnswer(getAnswer(item, questionId)).trim(),
-      unit: item.unit || "",
-      name: item.name || "",
+      respondent: getRespondentLabel(item),
+      role: getRoleLabel(item),
       time: item.submittedAt
     }))
     .filter((item) => item.text);
@@ -365,14 +393,14 @@ function renderOpenList(id, submissions, questionId) {
     node.className = "open-item";
     node.innerHTML = `
       <p>${escapeHtml(item.text)}</p>
-      <div class="open-meta">${escapeHtml(item.unit)} · ${escapeHtml(item.name)} · ${escapeHtml(formatDate(item.time))}</div>
+      <div class="open-meta">${escapeHtml(item.role)} · ${escapeHtml(item.respondent)} · ${escapeHtml(formatDate(item.time))}</div>
     `;
     root.append(node);
   });
 }
 
 function renderDetails(submissions) {
-  const headers = ["操作", "提交时间", "单位", "姓名", ...QUESTIONS.map((_, index) => `Q${index + 1}`)];
+  const headers = ["操作", "提交时间", "用户编号", "身份", ...QUESTIONS.map((_, index) => `Q${index + 1}`)];
   const rows = getRows(submissions);
   document.querySelector("#detailCount").textContent = `${rows.length} 条`;
   document.querySelector("#detailHead").innerHTML = `<tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>`;
@@ -395,8 +423,9 @@ function renderAnalysisSummary(submissions) {
   root.innerHTML = `
     <article class="analysis-card">
       <h3>一、总体判断</h3>
-      <p>本次共回收 <span class="analysis-highlight">${submissions.length}</span> 份问卷，覆盖 <span class="analysis-highlight">${analysis.unitCount}</span> 个单位。1-7题按“非常同意=5分、同意=4分、一般=3分、不同意=2分、非常不同意=1分”换算后，整体平均分为 <span class="analysis-highlight">${analysis.overallScore ? analysis.overallScore.toFixed(2) : "-"}</span> 分，整体处于 <span class="analysis-highlight">${escapeHtml(getScoreLevel(analysis.overallScore))}</span> 区间。</p>
+      <p>本次共回收 <span class="analysis-highlight">${submissions.length}</span> 份问卷，覆盖 <span class="analysis-highlight">${analysis.roleCount}</span> 类身份。1-7题按“非常同意=5分、同意=4分、一般=3分、不同意=2分、非常不同意=1分”换算后，整体平均分为 <span class="analysis-highlight">${analysis.overallScore ? analysis.overallScore.toFixed(2) : "-"}</span> 分，整体处于 <span class="analysis-highlight">${escapeHtml(getScoreLevel(analysis.overallScore))}</span> 区间。</p>
       <p>从平均认同率看，1-7题中选择“非常同意/同意”的平均占比为 <span class="analysis-highlight">${analysis.averageAgreement ? `${Math.round(analysis.averageAgreement * 100)}%` : "-"}</span>，说明培训对“数据治理不是单纯IT问题，而是业务管理问题”的核心导向已经形成一定接受度。</p>
+      <p>身份分布：${analysis.roleDistribution.map((item) => `${escapeHtml(item.role)} ${item.count} 人`).join("；") || "暂无"}。</p>
     </article>
     <article class="analysis-card">
       <h3>二、核心发现</h3>
@@ -493,14 +522,14 @@ function exportExcel(submissions) {
 }
 
 function getExportDetailRows(submissions) {
-  const headers = ["提交时间", "单位", "姓名"];
+  const headers = ["提交时间", "用户编号", "身份"];
   Array.from({ length: SCORE_QUESTION_COUNT }, (_, index) => {
     headers.push(`Q${index + 1}选项`, `Q${index + 1}分值`);
   });
   headers.push(`Q8.${QUESTIONS[7]}`, `Q9.${QUESTIONS[8]}`, `Q10.${QUESTIONS[9]}`);
 
   const rows = submissions.map((item) => {
-    const row = [formatDate(item.submittedAt), item.unit || "", item.name || ""];
+    const row = [formatDate(item.submittedAt), getRespondentLabel(item), getRoleLabel(item)];
     Array.from({ length: SCORE_QUESTION_COUNT }, (_, index) => {
       const questionId = `q${index + 1}`;
       const score = getLikertScore(item, questionId);
@@ -522,7 +551,8 @@ function getAnalysisRows(submissions) {
   const rows = [
     ["指标", "值"],
     ["提交总数", submissions.length],
-    ["参与单位数", analysis.unitCount],
+    ["身份类型数", analysis.roleCount],
+    ["身份分布", analysis.roleDistribution.map((item) => `${item.role}：${item.count}人`).join("；")],
     ["评分规则", "非常同意=5分；同意=4分；一般=3分；不同意=2分；非常不同意=1分"],
     ["1-7题整体平均分", analysis.overallScore ? roundNumber(analysis.overallScore) : ""],
     ["整体评价等级", getScoreLevel(analysis.overallScore)],
@@ -802,7 +832,7 @@ document.querySelector("#detailBody").addEventListener("click", async (event) =>
   const target = submissions[index];
   if (!target) return;
 
-  const label = `${target.unit || "未知单位"} ${target.name || "未知姓名"} ${formatDate(target.submittedAt)}`;
+  const label = `${getRoleLabel(target)} ${getRespondentLabel(target)} ${formatDate(target.submittedAt)}`;
   if (!confirm(`确定删除这条明细数据吗？\n${label}`)) return;
 
   try {

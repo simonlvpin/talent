@@ -1,4 +1,5 @@
 const LIKERT_OPTIONS = ["非常同意", "同意", "一般", "不同意", "非常不同意"];
+const RESPONDENT_ID_KEY = "talent-survey:respondent-id";
 
 const survey = {
   id: "gz-transport-data-governance-2026",
@@ -90,7 +91,7 @@ const survey = {
       type: "textarea",
       required: false,
       text: "其他方面的培训需求或者建议",
-      placeholder: "如有其他期望培训方向，请填写"
+      placeholder: "如有其他培训需求或者建议，请填写"
     }
   ]
 };
@@ -103,6 +104,16 @@ const closeButton = document.querySelector("#closeButton");
 const closeHelp = document.querySelector("#closeHelp");
 const identitySection = document.querySelector(".identity-section");
 const appConfig = window.TALENT_CONFIG || {};
+
+function getRespondentId() {
+  const existing = localStorage.getItem(RESPONDENT_ID_KEY);
+  if (existing) return existing;
+
+  const randomPart = window.crypto?.randomUUID ? window.crypto.randomUUID().slice(0, 8) : Math.random().toString(36).slice(2, 10);
+  const respondentId = `U${Date.now().toString(36).toUpperCase()}${randomPart.toUpperCase()}`;
+  localStorage.setItem(RESPONDENT_ID_KEY, respondentId);
+  return respondentId;
+}
 
 function createQuestionCard(question, index) {
   const card = document.createElement("article");
@@ -204,8 +215,10 @@ function collectSubmission() {
     surveyId: survey.id,
     surveyTitle: survey.title,
     submittedAt: new Date().toISOString(),
-    unit: (data.get("unit") || "").toString().trim(),
-    name: (data.get("name") || "").toString().trim(),
+    respondentId: getRespondentId(),
+    role: (data.get("role") || "").toString().trim(),
+    unit: "",
+    name: "",
     answers
   };
 }
@@ -228,24 +241,13 @@ function clearErrors() {
 }
 
 function validateIdentity() {
-  const unitInput = document.querySelector("#unit");
-  const nameInput = document.querySelector("#name");
-  const missing = [];
+  const roleInputs = [...document.querySelectorAll("input[name='role']")];
+  const selectedRole = roleInputs.some((input) => input.checked);
 
-  if (!unitInput.value.trim()) {
-    missing.push("单位");
-    unitInput.setAttribute("aria-invalid", "true");
-  }
-
-  if (!nameInput.value.trim()) {
-    missing.push("姓名");
-    nameInput.setAttribute("aria-invalid", "true");
-  }
-
-  if (missing.length > 0) {
-    showError(identitySection, `请填写${missing.join("和")}后再提交。`);
-    const target = missing.includes("单位") ? unitInput : nameInput;
-    target.focus();
+  if (!selectedRole) {
+    roleInputs.forEach((input) => input.setAttribute("aria-invalid", "true"));
+    showError(identitySection, "请选择身份后再提交。");
+    roleInputs[0]?.focus();
     identitySection.scrollIntoView({ behavior: "smooth", block: "center" });
     return false;
   }
